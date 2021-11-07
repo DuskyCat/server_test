@@ -57,7 +57,7 @@
             android:layout_height="wrap_content"
             android:layout_marginLeft="20dp"
             android:layout_marginTop="30dp"
-            android:text="save image"/>
+            android:text="posetrans"/>
 
         <Button
             android:id="@+id/button3"
