@@ -19,6 +19,7 @@ import android.widget.ImageView;
 import android.widget.Toast;
 
 
+import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.io.BufferedWriter;
@@ -35,11 +36,16 @@ import java.net.URL;
 public class MainActivity extends AppCompatActivity {
 
     private final int GET_GALLERY_IMAGE = 200;
+    private final int GET_MASK_IMAGE = 300;
     private ImageView imageview;
     private Button urlbutton;
     private Button button;
     private Button segbtn;
+    private Button inpaintbtn;
+    private Button portraitbtn;
+    private Button maskbtn;
     Bitmap bitmap;
+    Bitmap mask_bitmap;
     Bitmap res;
     private String base_url;
     private String option;
@@ -61,6 +67,9 @@ public class MainActivity extends AppCompatActivity {
         button = (Button) findViewById(R.id.button2);
         imageview = (ImageView)findViewById(R.id.imageView);
         segbtn = (Button) findViewById(R.id.button3);
+        inpaintbtn = (Button) findViewById(R.id.button4);
+        portraitbtn = (Button) findViewById(R.id.button5);
+        maskbtn = (Button) findViewById(R.id.button6);
     }
 
     public void SetListener()
@@ -78,6 +87,21 @@ public class MainActivity extends AppCompatActivity {
             public void onClick(View view) {
                 option = "/posetransfer";
                 Log.v("button", "button click");
+                try{
+                    ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
+                    bitmap.compress(Bitmap.CompressFormat.PNG, 100, byteArrayOutputStream);
+
+                    byte[] image = byteArrayOutputStream.toByteArray();
+                    String byteStream = Base64.encodeToString(image, 0);
+
+
+                    
+                    jsonObject = new JSONObject();
+                    jsonObject.put("image", byteStream);
+                    jsonObject.put("pose", "1");//미리 선정한 pose의 number
+                }catch(JSONException e) {
+                }
+
 
                 connect(option);
 
@@ -88,11 +112,71 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void onClick(View view) {
                 option = "/segmentation";
+                try{
+                    ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
+                    bitmap.compress(Bitmap.CompressFormat.PNG, 100, byteArrayOutputStream);
+
+                    byte[] image = byteArrayOutputStream.toByteArray();
+                    String byteStream = Base64.encodeToString(image, 0);
+
+
+                    
+                    jsonObject = new JSONObject();
+                    jsonObject.put("image", byteStream);
+                }catch(JSONException e) {
+                }
                 connect(option);
 
             }
         }) ;
+        inpaintbtn.setOnClickListener(new Button.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                option = "/inpainting";
+                try{
+                    ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
+                    bitmap.compress(Bitmap.CompressFormat.PNG, 100, byteArrayOutputStream);
+                    byte[] image = byteArrayOutputStream.toByteArray();
+                    String byteStream = Base64.encodeToString(image, 0);
 
+                    ByteArrayOutputStream mask_byteArrayOutputStream = new ByteArrayOutputStream();
+                    mask_bitmap.compress(Bitmap.CompressFormat.PNG, 100, mask_byteArrayOutputStream);
+
+                    byte[] mask_image = mask_byteArrayOutputStream.toByteArray();
+                    String mask_byteStream = Base64.encodeToString(mask_image, 0);
+
+
+                    jsonObject = new JSONObject();
+                    jsonObject.put("image", byteStream);
+                    jsonObject.put("mask", mask_byteStream);
+                }catch(JSONException e) {
+                }
+                connect(option);
+
+            }
+        }) ;
+        portraitbtn.setOnClickListener(new Button.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                option = "/portrait_mode";
+                try{
+                    ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
+                    bitmap.compress(Bitmap.CompressFormat.PNG, 100, byteArrayOutputStream);
+
+                    byte[] image = byteArrayOutputStream.toByteArray();
+                    String byteStream = Base64.encodeToString(image, 0);
+
+
+
+                    jsonObject = new JSONObject();
+                    jsonObject.put("image", byteStream);
+                    jsonObject.put("sigma", "1");//sigma값이 커짐에 따라 blur의 효과가 커짐
+                }catch(JSONException e) {
+                }
+                connect(option);
+
+            }
+        }) ;
 
         imageview.setOnClickListener(new View.OnClickListener() {
             public void onClick(View v) {
@@ -102,6 +186,15 @@ public class MainActivity extends AppCompatActivity {
                 startActivityForResult(intent, GET_GALLERY_IMAGE);
             }
         });
+        maskbtn.setOnClickListener(new Button.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+
+                Intent intent = new Intent(Intent.ACTION_PICK);
+                intent. setDataAndType(android.provider.MediaStore.Images.Media.EXTERNAL_CONTENT_URI, "image/*");
+                startActivityForResult(intent, GET_MASK_IMAGE);
+            }
+        }) ;
     }
 
 
@@ -116,6 +209,13 @@ public class MainActivity extends AppCompatActivity {
             imageview.setImageURI(selectedImageUri);
             BitmapDrawable drawable = (BitmapDrawable) imageview.getDrawable();
             bitmap = drawable.getBitmap();
+
+        }else if(requestCode == GET_MASK_IMAGE && resultCode == RESULT_OK && data != null && data.getData() != null) {
+
+            Uri selectedImageUri = data.getData();
+            imageview.setImageURI(selectedImageUri);
+            BitmapDrawable drawable = (BitmapDrawable) imageview.getDrawable();
+            mask_bitmap = drawable.getBitmap();
 
         }
 
@@ -158,23 +258,9 @@ public class MainActivity extends AppCompatActivity {
                     String twoHyphens = "--";
                     String boundary = "*****";
 
-                    ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
-                    bitmap.compress(Bitmap.CompressFormat.PNG, 100, byteArrayOutputStream);
-
-                    byte[] image = byteArrayOutputStream.toByteArray();
-                    String byteStream = Base64.encodeToString(image, 0);
-
-                    jsonObject = new JSONObject();
-                    jsonObject.put("image", byteStream);
-                    if(option.equals("/posetransfer")){
-                        //선택한 포즈를 pose에 넣어서 전송
-                        jsonObject.put("pose", "1");
-                    }
+                    
                     String data = jsonObject.toString();
-
-
-
-
+                    
                     URL url = new URL(base_url+option);
                     HttpURLConnection con = (HttpURLConnection) url.openConnection();
                     con.setDoInput(true); //input 허용
